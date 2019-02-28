@@ -1,13 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="2b5bfb99-b7ee-43d0-b072-da6a2351c191" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/visual_plotly/data_statistic_plot.py" beforeDir="false" afterPath="$PROJECT_DIR$/visual_plotly/data_statistic_plot.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/visual_plotly/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/visual_plotly/urls.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/visual_plotly/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/visual_plotly/views.py" afterDir="false" />
-    </list>
+    <list default="true" id="2b5bfb99-b7ee-43d0-b072-da6a2351c191" name="Default Changelist" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -40,8 +34,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/visual_plotly/data_statistic_plot.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="855">
-              <caret line="120" lean-forward="true" selection-start-line="120" selection-end-line="120" />
+            <state relative-caret-position="-36599">
+              <caret line="123" column="52" lean-forward="true" selection-start-line="123" selection-start-column="52" selection-end-line="123" selection-end-column="52" />
               <folding>
                 <element signature="e#86#105#0" expanded="true" />
               </folding>
@@ -137,7 +131,7 @@
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="7">
+  <component name="ProjectFrameBounds" extendedState="6">
     <option name="x" value="42" />
     <option name="width" value="1386" />
     <option name="height" value="788" />
@@ -378,12 +372,12 @@
       <workItem from="1551149741097" duration="1303000" />
       <workItem from="1551167377634" duration="4380000" />
       <workItem from="1551229612420" duration="9846000" />
-      <workItem from="1551315651315" duration="12838000" />
+      <workItem from="1551315651315" duration="15113000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="100307000" />
+    <option name="totallyTimeSpent" value="102582000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -396,7 +390,6 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="-8" y="-8" width="1382" height="744" extended-state="6" />
-    <editor active="true" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.22768533" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
@@ -571,8 +564,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/visual_plotly/data_statistic_plot.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="855">
-          <caret line="120" lean-forward="true" selection-start-line="120" selection-end-line="120" />
+        <state relative-caret-position="-36599">
+          <caret line="123" column="52" lean-forward="true" selection-start-line="123" selection-start-column="52" selection-end-line="123" selection-end-column="52" />
           <folding>
             <element signature="e#86#105#0" expanded="true" />
           </folding>
