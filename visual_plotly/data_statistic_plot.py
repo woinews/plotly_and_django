@@ -13,8 +13,8 @@ import warnings
 warnings.filterwarnings("ignore")
 # 读取采购明细
 
-start_time = '2019-02-01'
-end_time = '2019-02-27'
+start_time = '2019-02-18'
+end_time = '2019-02-28'
 
 engine_1 = create_engine(
     "mysql+mysqldb://{}:{}@{}/{}?charset=utf8".format('yhxc', 'yhxc1234', '10.8.30.104', 'purc_details'))
@@ -32,11 +32,10 @@ time_list = purc_data['创建时间'].sort_values(ascending=True).drop_duplicate
 # end_time = purc_data['创建时间'].astype(str).max()
 
 windows_h = 1080
-windows_w = 1920
+windows_w = 1960
 
 adv_mafs_list = ['TI', 'ADI', 'ON', 'ST', 'INFINEON', 'VISHAY', 'SAMSUNG', 'MURATA',
                  'TE', 'NXP']
-
 
 def qty_type(y, x):
     if y != '被动件':
@@ -118,7 +117,11 @@ daily_search_top2w = pd.read_sql(sql=sql_cmd_2, con=engine_2)
 daily_search_top2w['avg_per_day'] = sum(daily_search_top2w['search_count']) / len(daily_search_top2w['date'])
 
 # 读取TOP2W型号
-top2w_pno = pd.read_csv(open(r'D:\数据分析\搜索分析\2018年搜索\2018搜索TOP2W.csv', encoding='utf8'))
+sql_cmd_4 = '''
+            select `产品型号` from `top2w`
+            '''
+
+top2w_pno = pd.read_sql(sql=sql_cmd_4, con=engine_2)
 
 # 匹配销售型号是否为TOP2W型号
 purc_data['TOP2W'] = purc_data['产品型号'].isin(top2w_pno['产品型号'])
@@ -141,7 +144,6 @@ import plotly as py
 
 pyplt = py.offline.plot
 import plotly.graph_objs as go
-from plotly import tools
 
 
 # import os
@@ -157,143 +159,123 @@ class ChartPlot:
             {'产品型号': np.count_nonzero, '销售额(USD)': np.sum})
         purc_all = purc_data.groupby('需求区间', as_index=False).agg({'产品型号': np.count_nonzero, '销售额(USD)': np.sum})
 
-        table1 = pd.DataFrame({'需求区间': qty_type_list}).merge(purc_top2w, on='需求区间', how='left')
-
-        table1['percentage'] = table1['销售额(USD)'] / table1['销售额(USD)'].sum()
-
         table2 = pd.DataFrame({'需求区间': qty_type_list}).merge(purc_all, on='需求区间', how='left')
 
         table2['percentage'] = table2['销售额(USD)'] / table2['销售额(USD)'].sum()
 
+        table1 = pd.DataFrame({'需求区间': qty_type_list}).merge(purc_top2w, on='需求区间', how='left')
+
+        table1['percentage'] = table1['销售额(USD)'] / table2['销售额(USD)'].sum()
+
+        table1['percentage'] = table1['percentage'].fillna(0)
+        table2['percentage'] = table2['percentage'].fillna(0)
+
+        table2 = table2.rename(columns={'产品型号': '型号次'})
+        table1 = table1.rename(columns={'产品型号': '型号次'})
+
         trace0 = go.Bar(
             x=table2['需求区间'],
-            y=table2['产品型号'],
-            text=table2['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(58,154,217,1)'),
+            y=table2['型号次'],
             name='全平台',
             width=table2['percentage'] * 3
         )
 
         trace1 = go.Bar(
             x=table1['需求区间'],
-            y=table1['产品型号'],
-            text=table1['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(41,171,164,1)'),
+            y=table1['型号次'] * (-1),
             name='TOP2W全平台',
             width=table1['percentage'] * 3
         )
 
-        trace2_avg = go.Scatter(
-            x=daily_search['date'],
-            y=daily_search['avg_per_day'],
-            marker=dict(
-                color='rgba(51,102,153,1)'),
-            name='平均每日搜索次数'
-        )
+        data = [trace0, trace1]
 
+        layout = {
+            'xaxis': {'tickfont': {'size': 30}},
+            'yaxis': {'tickfont': {'size': 30}},
+            'barmode': 'relative',
+            'title': '<b>平台销售各需求区间分布图(%s至%s)</b>' % (start_time, end_time),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'},
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
+
+        fig = go.Figure(data=data, layout=layout)
+        fig['layout'].update(height=windows_h, width=windows_w
+                             )
+        div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
+        return div
+
+    #        pyplt(fig, filename='全平台销售')
+
+    def search_trend(self):
         trace2 = go.Scatter(
             x=daily_search['date'],
             y=daily_search['search_count'],
             marker=dict(
-                color='rgba(255,204,102,1)'),
-            name='总搜索次数'
-        )
-
-        trace3_avg = go.Scatter(
-            x=daily_search_top2w['date'],
-            y=daily_search_top2w['avg_per_day'],
-            marker=dict(
-                color='rgba(51,102,153,1)'),
-            name='TOP2W型号平均每日搜索次数'
+                color='rgb(16, 118, 203)',
+                size=10
+            ),
+            name='总搜索次数',
+            line=dict(
+                width=4
+            )
         )
 
         trace3 = go.Scatter(
             x=daily_search_top2w['date'],
             y=daily_search_top2w['search_count'],
             marker=dict(
-                color='rgba(255,204,102,1)'),
-            name='TOP2W型号搜索次数'
+                color='rgba(255,204,102,1)',
+                size=10
+            ),
+            name='TOP2W型号搜索次数',
+            line=dict(
+                width=4
+            )
+
         )
 
-        fig = tools.make_subplots(rows=2, cols=2,
-                                  subplot_titles=('平台销售各需求区间分布图(%s至%s)' % (start_time, end_time),
-                                                  'TOP2W型号平台销售各需求区间分布图',
-                                                  '平台型号搜索趋势(平均每日%s)' % int(daily_search['avg_per_day'][0]),
-                                                  'TOP2W型号搜索趋势(平均每日%s)' % int(daily_search_top2w['avg_per_day'][0])),
-                                  shared_yaxes=True)
+        data = [trace2, trace3]
 
-        fig.append_trace(trace0, 1, 1)
-        fig.append_trace(trace1, 1, 2)
-        fig.append_trace(trace2, 2, 1)
-        fig.append_trace(trace2_avg, 2, 1)
-        fig.append_trace(trace3, 2, 2)
-        fig.append_trace(trace3_avg, 2, 2)
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30},
+                'type': 'category'
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'relative',
+            'title': '<b>平台型号搜索趋势<br>(全平台平均每日%s, TOP2W平均每日%s)</b>' % (
+            int(daily_search['avg_per_day'][0]), int(daily_search_top2w['avg_per_day'][0])),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
 
-        annotations = []
-        annotations.append(dict(
-            x=0.225, y=1, text='<b>平台销售各需求区间分布图(%s至%s)</b>' % (start_time, end_time),
-            visible=True,
-            font=dict(family='\"Open Sans\", verdana, arial, sans-serif', size=21,
-                      color='#444'),
-            showarrow=False, )
+        fig = go.Figure(data=data, layout=layout)
+        fig['layout'].update(
+            height=windows_h, width=windows_w
         )
-
-        annotations.append(dict(
-            x=0.775, y=1, text='<b>TOP2W型号平台销售各需求区间分布图</b>',
-            visible=True,
-            font=dict(family='Arial', size=21,
-                      color='#444'),
-            showarrow=False, )
-        )
-
-        annotations.append(dict(
-            x=0.225, y=0.375,
-            text='<b>平台型号搜索趋势(平均每日%s)</b>' % int(daily_search['avg_per_day'][0]),
-            visible=True,
-            font=dict(family='Arial', size=21,
-                      color='#444'),
-            showarrow=False, )
-        )
-
-        annotations.append(dict(
-            x=0.775, y=0.375,
-            text='<b>TOP2W型号搜索趋势(平均每日%s)</b>' % int(daily_search_top2w['avg_per_day'][0]),
-            visible=True,
-            font=dict(family='Arial', size=21,
-                      color='#444'),
-            showarrow=False, )
-        )
-
-        fig['layout'].update(height=windows_h, width=windows_w, margin=dict(b=50, t=50),
-                             annotations=annotations
-                             )
-
-        #                                             1:{"text": "Source: NOAA",
-        #                                               "visible": True,
-        #                                               "font":{
-        #                                                       "family":"arial",
-        #                                                       'size':21,
-        #                                                       'color':'#444'
-        #                                                       },
-        #                                               "x": 0,
-        #                                               "y": 1}
-        #                                               })
-
         div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
         return div
 
-    #        pyplt(fig, filename='全平台销售')
+    #        pyplt(fig, filename='全平台搜索')
 
-    def zy_graph(self):
-        zy_purc_top2w = zy_purc_data[zy_purc_data['TOP2W']].groupby('需求区间', as_index=False).agg(
-            {'产品型号': np.count_nonzero, '销售额(USD)': np.sum})
-
-        zy_purc_all = zy_purc_data.groupby('需求区间', as_index=False).agg({'产品型号': np.count_nonzero, '销售额(USD)': np.sum})
-
+    def zy_graph_trend(self):
         table1 = zy_purc_data[['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)['销售额(USD)'].sum().sort_values(
             ['创建时间'])
 
@@ -304,21 +286,12 @@ class ChartPlot:
 
         table1_2w = pd.DataFrame({'创建时间': time_list}).merge(table1_2w, on='创建时间', how='left')
 
-        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
-
-        table3['percentage'] = table3['销售额(USD)'] / table3['销售额(USD)'].sum()
-
-        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
-
-        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
-
-        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / daily_search_top2w['search_count'].sum()
-
         trace1 = go.Bar(
             x=table1['创建时间'],
             y=table1['销售额(USD)'],
             marker=dict(
-                color='rgba(51,102,153,1)'),
+                color='rgba(51,102,153,1)'
+            ),
             name='自营销售额(USD)',
             opacity=0.6,
             #    title = '销售额趋势(今日销售额$%s)' % int(table1['销售额(USD)'].tolist()[-1])
@@ -328,104 +301,195 @@ class ChartPlot:
             x=table1_2w['创建时间'],
             y=table1_2w['销售额(USD)'],
             marker=dict(
-                color='rgba(255,204,102,1)'),
+                color='rgba(255,204,102,1)'
+            ),
             name='自营TOP2W销售额(USD)',
         )
 
-        trace2 = go.Table(
-            domain=dict(x=[0.55, 1], y=[0, 0.4]),
+        data = [trace1, trace1_2w]
 
-            header=dict(values=list(table3.columns[0:3]),
-                        fill=dict(color='#C2D4FF')
-                        ),
-            cells=dict(values=[table3.需求区间, table3.产品型号,
-                               np.round(table3['销售额(USD)'], 1).map(lambda x: format(x, ','))],
-                       fill=dict(color='#F5F8FF')
-                       )
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30},
+                'type': 'category'
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'group',
+            'title': '<b>销售额趋势(%s至%s)<br>(今日自营$%s, TOP2W $%s)</b>' % (
+                start_time, end_time,
+                int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
+
+        fig = go.Figure(data=data, layout=layout)
+        fig['layout'].update(
+            height=windows_h, width=windows_w
         )
+        div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
+        return div
+
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph(self):
+        zy_purc_top2w = zy_purc_data[zy_purc_data['TOP2W']].groupby('需求区间', as_index=False).agg(
+            {'产品型号': np.count_nonzero, '销售额(USD)': np.sum})
+
+        zy_purc_all = zy_purc_data.groupby('需求区间', as_index=False).agg({'产品型号': np.count_nonzero, '销售额(USD)': np.sum})
+
+        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
+
+        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
+
+        table3['percentage'] = table3['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table3['percentage'] = table3['percentage'].fillna(0)
+        table4['percentage'] = table4['percentage'].fillna(0)
+
+        table3 = table3.rename(columns={'产品型号': '型号次'})
+        table4 = table4.rename(columns={'产品型号': '型号次'})
+
+        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / daily_search_top2w['search_count'].sum()
 
         trace3 = go.Bar(
             x=table4['需求区间'],
-            y=table4['产品型号'],
-            text=table4['产品型号'],
-            textposition='outside',
+            y=table4['型号次'],
             marker=dict(
                 color='rgba(58,154,217,1)'),
             name='自营',
-            width=table4['percentage'] * 3,
-            xaxis='x3',
-            yaxis='y3',
+            width=table4['percentage'] * 3
         )
 
         trace4 = go.Bar(
             x=table3['需求区间'],
-            y=table3['产品型号'],
-            text=table3['产品型号'],
-            textposition='outside',
+            y=table3['型号次'] * (-1),
             marker=dict(
                 color='rgba(41,171,164,1)'),
             name='TOP2W自营',
-            width=table3['percentage'] * 3,
-            xaxis='x4',
-            yaxis='y3',
+            width=table3['percentage'] * 3
         )
 
-        data = [trace1, trace1_2w, trace2, trace3, trace4]
-        layout = go.Layout(
-            xaxis=dict(
-                domain=[0, 0.45],
-                type='category',
-                tickfont=dict(
-                    size=18
-                )
-            ),
-            yaxis=dict(
-                domain=[0.1, 0.45],
-                tickfont=dict(
-                    size=18
-                )
+        data = [trace3, trace4]
 
-            ),
-            xaxis3=dict(
-                domain=[0, 0.45],
-                anchor='y3',
-                tickfont=dict(
-                    size=18
-                )
-            ),
-            xaxis4=dict(
-                domain=[0.55, 1],
-                anchor='y3',
-                tickfont=dict(
-                    size=18
-                )
-            ),
-            yaxis3=dict(
-                domain=[0.55, 1],
-                anchor='x3',
-                tickfont=dict(
-                    size=18
-                )
-            )
-        )
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30}
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'relative',
+            'title': '<b>TOP2W型号自营销售各需求区间分布图(%s至%s)<br>(合计销售额$%s,搜索命中成单率%.2f%%)</b>' % (
+                start_time, end_time,
+                int(table3['销售额(USD)'].sum()), top2w_order_rate * 100),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
+
         fig = go.Figure(data=data, layout=layout)
-
-        fig['layout']['xaxis'].update(title='销售额趋势(今日自营$%s,TOP2W $%s)' % (
-            int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])))
-
-        fig['layout']['xaxis3'].update(title='自营销售各需求区间分布图(合计销售额$%s)' % int(table4['销售额(USD)'].sum()))
-        fig['layout']['xaxis4'].update(title='TOP2W型号自营销售各需求区间分布图(合计销售额$%s,搜索命中成单率%.2f%%)' % (
-            int(table3['销售额(USD)'].sum()), top2w_order_rate * 100))
-
-        fig['layout'].update(height=windows_h, width=windows_w, title='自营销售汇总(%s至%s)' % (start_time, end_time),
-                             margin=dict(b=50, t=50))
-
-        div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=True)
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
+        div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
         return div
 
     #        pyplt(fig, filename='自营销售')
 
     def zy_graph_m0(self):
+        mafs = adv_mafs_list[0]
+
+        mafs_zy_purc_data = zy_purc_data[zy_purc_data['云汉标准厂牌'] == mafs]
+
+        table1 = mafs_zy_purc_data[['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
+            '销售额(USD)'].sum().sort_values(['创建时间'])
+
+        table1 = pd.DataFrame({'创建时间': time_list}).merge(table1, on='创建时间', how='left')
+        table1['销售额(USD)'] = table1['销售额(USD)'].fillna(0)
+
+        table1_2w = \
+        mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
+            '销售额(USD)'].sum().sort_values(['创建时间'])
+
+        table1_2w = pd.DataFrame({'创建时间': time_list}).merge(table1_2w, on='创建时间', how='left')
+        table1_2w['销售额(USD)'] = table1_2w['销售额(USD)'].fillna(0)
+
+        trace1 = go.Bar(
+            x=table1['创建时间'],
+            y=table1['销售额(USD)'],
+            marker=dict(
+                color='rgba(51,102,153,1)'),
+            name='%s自营销售额(USD)' % mafs,
+            opacity=0.6,
+            #    title = '销售额趋势(今日销售额$%s)' % int(table1['销售额(USD)'].tolist()[-1])
+        )
+
+        trace1_2w = go.Bar(
+            x=table1_2w['创建时间'],
+            y=table1_2w['销售额(USD)'],
+            marker=dict(
+                color='rgba(255,204,102,1)'),
+            name='%s自营TOP2W销售额(USD)' % mafs,
+        )
+
+        data = [trace1, trace1_2w]
+
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30},
+                'type': 'category',
+                'automargin': True
+
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'group',
+            'title': '<b>%s销售额趋势(%s至%s)<br>(今日自营$%s,TOP2W $%s)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
+
+        fig = go.Figure(data=data, layout=layout)
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
+        div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
+        return div
+
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m0_2(self):
         mafs = adv_mafs_list[0]
 
         sql_mafs_1 = '''
@@ -447,29 +511,92 @@ class ChartPlot:
         zy_purc_all = mafs_zy_purc_data.groupby('需求区间', as_index=False).agg(
             {'产品型号': np.count_nonzero, '销售额(USD)': np.sum})
 
+        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
+
+        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
+
+        table3['percentage'] = table3['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table3['percentage'] = table3['percentage'].fillna(0)
+        table4['percentage'] = table4['percentage'].fillna(0)
+
+        table3 = table3.rename(columns={'产品型号': '型号次'})
+        table4 = table4.rename(columns={'产品型号': '型号次'})
+
+        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
+
+        trace3 = go.Bar(
+            x=table4['需求区间'],
+            y=table4['型号次'],
+            marker=dict(
+                color='rgba(58,154,217,1)'),
+            name='自营',
+            width=table4['percentage'] * 3
+        )
+
+        trace4 = go.Bar(
+            x=table3['需求区间'],
+            y=table3['型号次'] * (-1),
+            marker=dict(
+                color='rgba(41,171,164,1)'),
+            name='TOP2W自营',
+            width=table3['percentage'] * 3
+        )
+
+        data = [trace3, trace4]
+
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30}
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'relative',
+            'title': '<b>%s型号自营销售各需求区间分布图(%s至%s)<br>(合计销售额$%s,搜索命中成单率%.2f%%)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table3['销售额(USD)'].sum()), top2w_order_rate * 100),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
+
+        fig = go.Figure(data=data, layout=layout)
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
+        div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
+        return div
+
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m1(self):
+        mafs = adv_mafs_list[1]
+
+        mafs_zy_purc_data = zy_purc_data[zy_purc_data['云汉标准厂牌'] == mafs]
+
         table1 = mafs_zy_purc_data[['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-            '销售额(USD)'].sum().sort_values(
-            ['创建时间'])
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1 = pd.DataFrame({'创建时间': time_list}).merge(table1, on='创建时间', how='left')
         table1['销售额(USD)'] = table1['销售额(USD)'].fillna(0)
 
         table1_2w = \
-            mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-                '销售额(USD)'].sum().sort_values(['创建时间'])
+        mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1_2w = pd.DataFrame({'创建时间': time_list}).merge(table1_2w, on='创建时间', how='left')
         table1_2w['销售额(USD)'] = table1_2w['销售额(USD)'].fillna(0)
-
-        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
-
-        table3['percentage'] = table3['销售额(USD)'] / table3['销售额(USD)'].sum()
-
-        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
-
-        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
-
-        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
 
         trace1 = go.Bar(
             x=table1['创建时间'],
@@ -489,82 +616,45 @@ class ChartPlot:
             name='%s自营TOP2W销售额(USD)' % mafs,
         )
 
-        trace2 = go.Table(
-            domain=dict(x=[0.55, 1], y=[0, 0.4]),
+        data = [trace1, trace1_2w]
 
-            header=dict(values=list(table3.columns[0:3]),
-                        fill=dict(color='#C2D4FF')
-                        ),
-            cells=dict(values=[table3.需求区间, table3.产品型号,
-                               np.round(table3['销售额(USD)'], 1).map(lambda x: format(x, ','))],
-                       fill=dict(color='#F5F8FF')
-                       )
-        )
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30},
+                'type': 'category',
+                'automargin': True
 
-        trace3 = go.Bar(
-            x=table4['需求区间'],
-            y=table4['产品型号'],
-            text=table4['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(58,154,217,1)'),
-            name='自营',
-            width=table4['percentage'] * 3,
-            xaxis='x3',
-            yaxis='y3',
-        )
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'group',
+            'title': '<b>%s销售额趋势(%s至%s)<br>(今日自营$%s,TOP2W $%s)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
 
-        trace4 = go.Bar(
-            x=table3['需求区间'],
-            y=table3['产品型号'],
-            text=table3['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(41,171,164,1)'),
-            name='TOP2W自营',
-            width=table3['percentage'] * 3,
-            xaxis='x4',
-            yaxis='y3',
-        )
-
-        data = [trace1, trace1_2w, trace2, trace3, trace4]
-        layout = go.Layout(
-            xaxis=dict(
-                domain=[0, 0.45],
-                type='category'
-            ),
-            yaxis=dict(
-                domain=[0.1, 0.45]
-            ),
-            xaxis3=dict(
-                domain=[0, 0.45],
-                anchor='y3'
-            ),
-            xaxis4=dict(
-                domain=[0.55, 1],
-                anchor='y3'
-            ),
-            yaxis3=dict(
-                domain=[0.55, 1],
-                anchor='x3'
-            )
-        )
         fig = go.Figure(data=data, layout=layout)
-
-        fig['layout']['xaxis'].update(title='销售额趋势(今日自营$%s,TOP2W $%s)' % (
-            int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])))
-
-        fig['layout']['xaxis3'].update(title='自营销售各需求区间分布图(合计销售额$%s)' % int(table4['销售额(USD)'].sum()))
-        fig['layout']['xaxis4'].update(title='TOP2W型号自营销售各需求区间分布图(合计销售额$%s,搜索命中成单率%.2f%%)' % (
-            int(table3['销售额(USD)'].sum()), top2w_order_rate * 100))
-
-        fig['layout'].update(height=windows_h, width=windows_w, title='%s自营销售汇总(%s至%s)' % (mafs, start_time, end_time),
-                             margin=dict(b=50, t=50))
-        #        pyplt(fig, filename='自营销售')
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
         div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
         return div
 
-    def zy_graph_m1(self):
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m1_2(self):
         mafs = adv_mafs_list[1]
 
         sql_mafs_1 = '''
@@ -586,29 +676,92 @@ class ChartPlot:
         zy_purc_all = mafs_zy_purc_data.groupby('需求区间', as_index=False).agg(
             {'产品型号': np.count_nonzero, '销售额(USD)': np.sum})
 
+        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
+
+        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
+
+        table3['percentage'] = table3['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table3['percentage'] = table3['percentage'].fillna(0)
+        table4['percentage'] = table4['percentage'].fillna(0)
+
+        table3 = table3.rename(columns={'产品型号': '型号次'})
+        table4 = table4.rename(columns={'产品型号': '型号次'})
+
+        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
+
+        trace3 = go.Bar(
+            x=table4['需求区间'],
+            y=table4['型号次'],
+            marker=dict(
+                color='rgba(58,154,217,1)'),
+            name='自营',
+            width=table4['percentage'] * 3
+        )
+
+        trace4 = go.Bar(
+            x=table3['需求区间'],
+            y=table3['型号次'] * (-1),
+            marker=dict(
+                color='rgba(41,171,164,1)'),
+            name='TOP2W自营',
+            width=table3['percentage'] * 3
+        )
+
+        data = [trace3, trace4]
+
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30}
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'relative',
+            'title': '<b>%s型号自营销售各需求区间分布图(%s至%s)<br>(合计销售额$%s,搜索命中成单率%.2f%%)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table3['销售额(USD)'].sum()), top2w_order_rate * 100),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
+
+        fig = go.Figure(data=data, layout=layout)
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
+        div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
+        return div
+
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m2(self):
+        mafs = adv_mafs_list[2]
+
+        mafs_zy_purc_data = zy_purc_data[zy_purc_data['云汉标准厂牌'] == mafs]
+
         table1 = mafs_zy_purc_data[['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-            '销售额(USD)'].sum().sort_values(
-            ['创建时间'])
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1 = pd.DataFrame({'创建时间': time_list}).merge(table1, on='创建时间', how='left')
         table1['销售额(USD)'] = table1['销售额(USD)'].fillna(0)
 
         table1_2w = \
-            mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-                '销售额(USD)'].sum().sort_values(['创建时间'])
+        mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1_2w = pd.DataFrame({'创建时间': time_list}).merge(table1_2w, on='创建时间', how='left')
         table1_2w['销售额(USD)'] = table1_2w['销售额(USD)'].fillna(0)
-
-        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
-
-        table3['percentage'] = table3['销售额(USD)'] / table3['销售额(USD)'].sum()
-
-        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
-
-        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
-
-        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
 
         trace1 = go.Bar(
             x=table1['创建时间'],
@@ -628,82 +781,45 @@ class ChartPlot:
             name='%s自营TOP2W销售额(USD)' % mafs,
         )
 
-        trace2 = go.Table(
-            domain=dict(x=[0.55, 1], y=[0, 0.4]),
+        data = [trace1, trace1_2w]
 
-            header=dict(values=list(table3.columns[0:3]),
-                        fill=dict(color='#C2D4FF')
-                        ),
-            cells=dict(values=[table3.需求区间, table3.产品型号,
-                               np.round(table3['销售额(USD)'], 1).map(lambda x: format(x, ','))],
-                       fill=dict(color='#F5F8FF')
-                       )
-        )
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30},
+                'type': 'category',
+                'automargin': True
 
-        trace3 = go.Bar(
-            x=table4['需求区间'],
-            y=table4['产品型号'],
-            text=table4['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(58,154,217,1)'),
-            name='自营',
-            width=table4['percentage'] * 3,
-            xaxis='x3',
-            yaxis='y3',
-        )
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'group',
+            'title': '<b>%s销售额趋势(%s至%s)<br>(今日自营$%s,TOP2W $%s)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
 
-        trace4 = go.Bar(
-            x=table3['需求区间'],
-            y=table3['产品型号'],
-            text=table3['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(41,171,164,1)'),
-            name='TOP2W自营',
-            width=table3['percentage'] * 3,
-            xaxis='x4',
-            yaxis='y3',
-        )
-
-        data = [trace1, trace1_2w, trace2, trace3, trace4]
-        layout = go.Layout(
-            xaxis=dict(
-                domain=[0, 0.45],
-                type='category'
-            ),
-            yaxis=dict(
-                domain=[0.1, 0.45]
-            ),
-            xaxis3=dict(
-                domain=[0, 0.45],
-                anchor='y3'
-            ),
-            xaxis4=dict(
-                domain=[0.55, 1],
-                anchor='y3'
-            ),
-            yaxis3=dict(
-                domain=[0.55, 1],
-                anchor='x3'
-            )
-        )
         fig = go.Figure(data=data, layout=layout)
-
-        fig['layout']['xaxis'].update(title='销售额趋势(今日自营$%s,TOP2W $%s)' % (
-            int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])))
-
-        fig['layout']['xaxis3'].update(title='自营销售各需求区间分布图(合计销售额$%s)' % int(table4['销售额(USD)'].sum()))
-        fig['layout']['xaxis4'].update(title='TOP2W型号自营销售各需求区间分布图(合计销售额$%s,搜索命中成单率%.2f%%)' % (
-            int(table3['销售额(USD)'].sum()), top2w_order_rate * 100))
-
-        fig['layout'].update(height=windows_h, width=windows_w, title='%s自营销售汇总(%s至%s)' % (mafs, start_time, end_time),
-                             margin=dict(b=50, t=50))
-        #        pyplt(fig, filename='自营销售')
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
         div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
         return div
 
-    def zy_graph_m2(self):
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m2_2(self):
         mafs = adv_mafs_list[2]
 
         sql_mafs_1 = '''
@@ -725,29 +841,92 @@ class ChartPlot:
         zy_purc_all = mafs_zy_purc_data.groupby('需求区间', as_index=False).agg(
             {'产品型号': np.count_nonzero, '销售额(USD)': np.sum})
 
+        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
+
+        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
+
+        table3['percentage'] = table3['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table3['percentage'] = table3['percentage'].fillna(0)
+        table4['percentage'] = table4['percentage'].fillna(0)
+
+        table3 = table3.rename(columns={'产品型号': '型号次'})
+        table4 = table4.rename(columns={'产品型号': '型号次'})
+
+        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
+
+        trace3 = go.Bar(
+            x=table4['需求区间'],
+            y=table4['型号次'],
+            marker=dict(
+                color='rgba(58,154,217,1)'),
+            name='自营',
+            width=table4['percentage'] * 3
+        )
+
+        trace4 = go.Bar(
+            x=table3['需求区间'],
+            y=table3['型号次'] * (-1),
+            marker=dict(
+                color='rgba(41,171,164,1)'),
+            name='TOP2W自营',
+            width=table3['percentage'] * 3
+        )
+
+        data = [trace3, trace4]
+
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30}
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'relative',
+            'title': '<b>%s型号自营销售各需求区间分布图(%s至%s)<br>(合计销售额$%s,搜索命中成单率%.2f%%)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table3['销售额(USD)'].sum()), top2w_order_rate * 100),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
+
+        fig = go.Figure(data=data, layout=layout)
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
+        div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
+        return div
+
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m3(self):
+        mafs = adv_mafs_list[3]
+
+        mafs_zy_purc_data = zy_purc_data[zy_purc_data['云汉标准厂牌'] == mafs]
+
         table1 = mafs_zy_purc_data[['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-            '销售额(USD)'].sum().sort_values(
-            ['创建时间'])
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1 = pd.DataFrame({'创建时间': time_list}).merge(table1, on='创建时间', how='left')
         table1['销售额(USD)'] = table1['销售额(USD)'].fillna(0)
 
         table1_2w = \
-            mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-                '销售额(USD)'].sum().sort_values(['创建时间'])
+        mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1_2w = pd.DataFrame({'创建时间': time_list}).merge(table1_2w, on='创建时间', how='left')
         table1_2w['销售额(USD)'] = table1_2w['销售额(USD)'].fillna(0)
-
-        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
-
-        table3['percentage'] = table3['销售额(USD)'] / table3['销售额(USD)'].sum()
-
-        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
-
-        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
-
-        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
 
         trace1 = go.Bar(
             x=table1['创建时间'],
@@ -767,82 +946,45 @@ class ChartPlot:
             name='%s自营TOP2W销售额(USD)' % mafs,
         )
 
-        trace2 = go.Table(
-            domain=dict(x=[0.55, 1], y=[0, 0.4]),
+        data = [trace1, trace1_2w]
 
-            header=dict(values=list(table3.columns[0:3]),
-                        fill=dict(color='#C2D4FF')
-                        ),
-            cells=dict(values=[table3.需求区间, table3.产品型号,
-                               np.round(table3['销售额(USD)'], 1).map(lambda x: format(x, ','))],
-                       fill=dict(color='#F5F8FF')
-                       )
-        )
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30},
+                'type': 'category',
+                'automargin': True
 
-        trace3 = go.Bar(
-            x=table4['需求区间'],
-            y=table4['产品型号'],
-            text=table4['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(58,154,217,1)'),
-            name='自营',
-            width=table4['percentage'] * 3,
-            xaxis='x3',
-            yaxis='y3',
-        )
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'group',
+            'title': '<b>%s销售额趋势(%s至%s)<br>(今日自营$%s,TOP2W $%s)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
 
-        trace4 = go.Bar(
-            x=table3['需求区间'],
-            y=table3['产品型号'],
-            text=table3['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(41,171,164,1)'),
-            name='TOP2W自营',
-            width=table3['percentage'] * 3,
-            xaxis='x4',
-            yaxis='y3',
-        )
-
-        data = [trace1, trace1_2w, trace2, trace3, trace4]
-        layout = go.Layout(
-            xaxis=dict(
-                domain=[0, 0.45],
-                type='category'
-            ),
-            yaxis=dict(
-                domain=[0.1, 0.45]
-            ),
-            xaxis3=dict(
-                domain=[0, 0.45],
-                anchor='y3'
-            ),
-            xaxis4=dict(
-                domain=[0.55, 1],
-                anchor='y3'
-            ),
-            yaxis3=dict(
-                domain=[0.55, 1],
-                anchor='x3'
-            )
-        )
         fig = go.Figure(data=data, layout=layout)
-
-        fig['layout']['xaxis'].update(title='销售额趋势(今日自营$%s,TOP2W $%s)' % (
-            int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])))
-
-        fig['layout']['xaxis3'].update(title='自营销售各需求区间分布图(合计销售额$%s)' % int(table4['销售额(USD)'].sum()))
-        fig['layout']['xaxis4'].update(title='TOP2W型号自营销售各需求区间分布图(合计销售额$%s,搜索命中成单率%.2f%%)' % (
-            int(table3['销售额(USD)'].sum()), top2w_order_rate * 100))
-
-        fig['layout'].update(height=windows_h, width=windows_w, title='%s自营销售汇总(%s至%s)' % (mafs, start_time, end_time),
-                             margin=dict(b=50, t=50))
-        #        pyplt(fig, filename='自营销售')
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
         div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
         return div
 
-    def zy_graph_m3(self):
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m3_2(self):
         mafs = adv_mafs_list[3]
 
         sql_mafs_1 = '''
@@ -864,29 +1006,92 @@ class ChartPlot:
         zy_purc_all = mafs_zy_purc_data.groupby('需求区间', as_index=False).agg(
             {'产品型号': np.count_nonzero, '销售额(USD)': np.sum})
 
+        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
+
+        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
+
+        table3['percentage'] = table3['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table3['percentage'] = table3['percentage'].fillna(0)
+        table4['percentage'] = table4['percentage'].fillna(0)
+
+        table3 = table3.rename(columns={'产品型号': '型号次'})
+        table4 = table4.rename(columns={'产品型号': '型号次'})
+
+        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
+
+        trace3 = go.Bar(
+            x=table4['需求区间'],
+            y=table4['型号次'],
+            marker=dict(
+                color='rgba(58,154,217,1)'),
+            name='自营',
+            width=table4['percentage'] * 3
+        )
+
+        trace4 = go.Bar(
+            x=table3['需求区间'],
+            y=table3['型号次'] * (-1),
+            marker=dict(
+                color='rgba(41,171,164,1)'),
+            name='TOP2W自营',
+            width=table3['percentage'] * 3
+        )
+
+        data = [trace3, trace4]
+
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30}
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'relative',
+            'title': '<b>%s型号自营销售各需求区间分布图(%s至%s)<br>(合计销售额$%s,搜索命中成单率%.2f%%)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table3['销售额(USD)'].sum()), top2w_order_rate * 100),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
+
+        fig = go.Figure(data=data, layout=layout)
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
+        div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
+        return div
+
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m4(self):
+        mafs = adv_mafs_list[4]
+
+        mafs_zy_purc_data = zy_purc_data[zy_purc_data['云汉标准厂牌'] == mafs]
+
         table1 = mafs_zy_purc_data[['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-            '销售额(USD)'].sum().sort_values(
-            ['创建时间'])
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1 = pd.DataFrame({'创建时间': time_list}).merge(table1, on='创建时间', how='left')
         table1['销售额(USD)'] = table1['销售额(USD)'].fillna(0)
 
         table1_2w = \
-            mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-                '销售额(USD)'].sum().sort_values(['创建时间'])
+        mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1_2w = pd.DataFrame({'创建时间': time_list}).merge(table1_2w, on='创建时间', how='left')
         table1_2w['销售额(USD)'] = table1_2w['销售额(USD)'].fillna(0)
-
-        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
-
-        table3['percentage'] = table3['销售额(USD)'] / table3['销售额(USD)'].sum()
-
-        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
-
-        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
-
-        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
 
         trace1 = go.Bar(
             x=table1['创建时间'],
@@ -906,82 +1111,45 @@ class ChartPlot:
             name='%s自营TOP2W销售额(USD)' % mafs,
         )
 
-        trace2 = go.Table(
-            domain=dict(x=[0.55, 1], y=[0, 0.4]),
+        data = [trace1, trace1_2w]
 
-            header=dict(values=list(table3.columns[0:3]),
-                        fill=dict(color='#C2D4FF')
-                        ),
-            cells=dict(values=[table3.需求区间, table3.产品型号,
-                               np.round(table3['销售额(USD)'], 1).map(lambda x: format(x, ','))],
-                       fill=dict(color='#F5F8FF')
-                       )
-        )
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30},
+                'type': 'category',
+                'automargin': True
 
-        trace3 = go.Bar(
-            x=table4['需求区间'],
-            y=table4['产品型号'],
-            text=table4['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(58,154,217,1)'),
-            name='自营',
-            width=table4['percentage'] * 3,
-            xaxis='x3',
-            yaxis='y3',
-        )
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'group',
+            'title': '<b>%s销售额趋势(%s至%s)<br>(今日自营$%s,TOP2W $%s)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
 
-        trace4 = go.Bar(
-            x=table3['需求区间'],
-            y=table3['产品型号'],
-            text=table3['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(41,171,164,1)'),
-            name='TOP2W自营',
-            width=table3['percentage'] * 3,
-            xaxis='x4',
-            yaxis='y3',
-        )
-
-        data = [trace1, trace1_2w, trace2, trace3, trace4]
-        layout = go.Layout(
-            xaxis=dict(
-                domain=[0, 0.45],
-                type='category'
-            ),
-            yaxis=dict(
-                domain=[0.1, 0.45]
-            ),
-            xaxis3=dict(
-                domain=[0, 0.45],
-                anchor='y3'
-            ),
-            xaxis4=dict(
-                domain=[0.55, 1],
-                anchor='y3'
-            ),
-            yaxis3=dict(
-                domain=[0.55, 1],
-                anchor='x3'
-            )
-        )
         fig = go.Figure(data=data, layout=layout)
-
-        fig['layout']['xaxis'].update(title='销售额趋势(今日自营$%s,TOP2W $%s)' % (
-            int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])))
-
-        fig['layout']['xaxis3'].update(title='自营销售各需求区间分布图(合计销售额$%s)' % int(table4['销售额(USD)'].sum()))
-        fig['layout']['xaxis4'].update(title='TOP2W型号自营销售各需求区间分布图(合计销售额$%s,搜索命中成单率%.2f%%)' % (
-            int(table3['销售额(USD)'].sum()), top2w_order_rate * 100))
-
-        fig['layout'].update(height=windows_h, width=windows_w, title='%s自营销售汇总(%s至%s)' % (mafs, start_time, end_time),
-                             margin=dict(b=50, t=50))
-        #        pyplt(fig, filename='自营销售')
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
         div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
         return div
 
-    def zy_graph_m4(self):
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m4_2(self):
         mafs = adv_mafs_list[4]
 
         sql_mafs_1 = '''
@@ -1003,29 +1171,92 @@ class ChartPlot:
         zy_purc_all = mafs_zy_purc_data.groupby('需求区间', as_index=False).agg(
             {'产品型号': np.count_nonzero, '销售额(USD)': np.sum})
 
+        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
+
+        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
+
+        table3['percentage'] = table3['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table3['percentage'] = table3['percentage'].fillna(0)
+        table4['percentage'] = table4['percentage'].fillna(0)
+
+        table3 = table3.rename(columns={'产品型号': '型号次'})
+        table4 = table4.rename(columns={'产品型号': '型号次'})
+
+        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
+
+        trace3 = go.Bar(
+            x=table4['需求区间'],
+            y=table4['型号次'],
+            marker=dict(
+                color='rgba(58,154,217,1)'),
+            name='自营',
+            width=table4['percentage'] * 3
+        )
+
+        trace4 = go.Bar(
+            x=table3['需求区间'],
+            y=table3['型号次'] * (-1),
+            marker=dict(
+                color='rgba(41,171,164,1)'),
+            name='TOP2W自营',
+            width=table3['percentage'] * 3
+        )
+
+        data = [trace3, trace4]
+
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30}
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'relative',
+            'title': '<b>%s型号自营销售各需求区间分布图(%s至%s)<br>(合计销售额$%s,搜索命中成单率%.2f%%)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table3['销售额(USD)'].sum()), top2w_order_rate * 100),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
+
+        fig = go.Figure(data=data, layout=layout)
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
+        div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
+        return div
+
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m5(self):
+        mafs = adv_mafs_list[5]
+
+        mafs_zy_purc_data = zy_purc_data[zy_purc_data['云汉标准厂牌'] == mafs]
+
         table1 = mafs_zy_purc_data[['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-            '销售额(USD)'].sum().sort_values(
-            ['创建时间'])
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1 = pd.DataFrame({'创建时间': time_list}).merge(table1, on='创建时间', how='left')
         table1['销售额(USD)'] = table1['销售额(USD)'].fillna(0)
 
         table1_2w = \
-            mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-                '销售额(USD)'].sum().sort_values(['创建时间'])
+        mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1_2w = pd.DataFrame({'创建时间': time_list}).merge(table1_2w, on='创建时间', how='left')
         table1_2w['销售额(USD)'] = table1_2w['销售额(USD)'].fillna(0)
-
-        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
-
-        table3['percentage'] = table3['销售额(USD)'] / table3['销售额(USD)'].sum()
-
-        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
-
-        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
-
-        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
 
         trace1 = go.Bar(
             x=table1['创建时间'],
@@ -1045,82 +1276,45 @@ class ChartPlot:
             name='%s自营TOP2W销售额(USD)' % mafs,
         )
 
-        trace2 = go.Table(
-            domain=dict(x=[0.55, 1], y=[0, 0.4]),
+        data = [trace1, trace1_2w]
 
-            header=dict(values=list(table3.columns[0:3]),
-                        fill=dict(color='#C2D4FF')
-                        ),
-            cells=dict(values=[table3.需求区间, table3.产品型号,
-                               np.round(table3['销售额(USD)'], 1).map(lambda x: format(x, ','))],
-                       fill=dict(color='#F5F8FF')
-                       )
-        )
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30},
+                'type': 'category',
+                'automargin': True
 
-        trace3 = go.Bar(
-            x=table4['需求区间'],
-            y=table4['产品型号'],
-            text=table4['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(58,154,217,1)'),
-            name='自营',
-            width=table4['percentage'] * 3,
-            xaxis='x3',
-            yaxis='y3',
-        )
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'group',
+            'title': '<b>%s销售额趋势(%s至%s)<br>(今日自营$%s,TOP2W $%s)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
 
-        trace4 = go.Bar(
-            x=table3['需求区间'],
-            y=table3['产品型号'],
-            text=table3['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(41,171,164,1)'),
-            name='TOP2W自营',
-            width=table3['percentage'] * 3,
-            xaxis='x4',
-            yaxis='y3',
-        )
-
-        data = [trace1, trace1_2w, trace2, trace3, trace4]
-        layout = go.Layout(
-            xaxis=dict(
-                domain=[0, 0.45],
-                type='category'
-            ),
-            yaxis=dict(
-                domain=[0.1, 0.45]
-            ),
-            xaxis3=dict(
-                domain=[0, 0.45],
-                anchor='y3'
-            ),
-            xaxis4=dict(
-                domain=[0.55, 1],
-                anchor='y3'
-            ),
-            yaxis3=dict(
-                domain=[0.55, 1],
-                anchor='x3'
-            )
-        )
         fig = go.Figure(data=data, layout=layout)
-
-        fig['layout']['xaxis'].update(title='销售额趋势(今日自营$%s,TOP2W $%s)' % (
-            int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])))
-
-        fig['layout']['xaxis3'].update(title='自营销售各需求区间分布图(合计销售额$%s)' % int(table4['销售额(USD)'].sum()))
-        fig['layout']['xaxis4'].update(title='TOP2W型号自营销售各需求区间分布图(合计销售额$%s,搜索命中成单率%.2f%%)' % (
-            int(table3['销售额(USD)'].sum()), top2w_order_rate * 100))
-
-        fig['layout'].update(height=windows_h, width=windows_w, title='%s自营销售汇总(%s至%s)' % (mafs, start_time, end_time),
-                             margin=dict(b=50, t=50))
-        #        pyplt(fig, filename='自营销售')
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
         div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
         return div
 
-    def zy_graph_m5(self):
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m5_2(self):
         mafs = adv_mafs_list[5]
 
         sql_mafs_1 = '''
@@ -1142,29 +1336,92 @@ class ChartPlot:
         zy_purc_all = mafs_zy_purc_data.groupby('需求区间', as_index=False).agg(
             {'产品型号': np.count_nonzero, '销售额(USD)': np.sum})
 
+        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
+
+        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
+
+        table3['percentage'] = table3['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table3['percentage'] = table3['percentage'].fillna(0)
+        table4['percentage'] = table4['percentage'].fillna(0)
+
+        table3 = table3.rename(columns={'产品型号': '型号次'})
+        table4 = table4.rename(columns={'产品型号': '型号次'})
+
+        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
+
+        trace3 = go.Bar(
+            x=table4['需求区间'],
+            y=table4['型号次'],
+            marker=dict(
+                color='rgba(58,154,217,1)'),
+            name='自营',
+            width=table4['percentage'] * 3
+        )
+
+        trace4 = go.Bar(
+            x=table3['需求区间'],
+            y=table3['型号次'] * (-1),
+            marker=dict(
+                color='rgba(41,171,164,1)'),
+            name='TOP2W自营',
+            width=table3['percentage'] * 3
+        )
+
+        data = [trace3, trace4]
+
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30}
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'relative',
+            'title': '<b>%s型号自营销售各需求区间分布图(%s至%s)<br>(合计销售额$%s,搜索命中成单率%.2f%%)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table3['销售额(USD)'].sum()), top2w_order_rate * 100),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
+
+        fig = go.Figure(data=data, layout=layout)
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
+        div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
+        return div
+
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m6(self):
+        mafs = adv_mafs_list[6]
+
+        mafs_zy_purc_data = zy_purc_data[zy_purc_data['云汉标准厂牌'] == mafs]
+
         table1 = mafs_zy_purc_data[['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-            '销售额(USD)'].sum().sort_values(
-            ['创建时间'])
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1 = pd.DataFrame({'创建时间': time_list}).merge(table1, on='创建时间', how='left')
         table1['销售额(USD)'] = table1['销售额(USD)'].fillna(0)
 
         table1_2w = \
-            mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-                '销售额(USD)'].sum().sort_values(['创建时间'])
+        mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1_2w = pd.DataFrame({'创建时间': time_list}).merge(table1_2w, on='创建时间', how='left')
         table1_2w['销售额(USD)'] = table1_2w['销售额(USD)'].fillna(0)
-
-        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
-
-        table3['percentage'] = table3['销售额(USD)'] / table3['销售额(USD)'].sum()
-
-        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
-
-        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
-
-        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
 
         trace1 = go.Bar(
             x=table1['创建时间'],
@@ -1184,82 +1441,45 @@ class ChartPlot:
             name='%s自营TOP2W销售额(USD)' % mafs,
         )
 
-        trace2 = go.Table(
-            domain=dict(x=[0.55, 1], y=[0, 0.4]),
+        data = [trace1, trace1_2w]
 
-            header=dict(values=list(table3.columns[0:3]),
-                        fill=dict(color='#C2D4FF')
-                        ),
-            cells=dict(values=[table3.需求区间, table3.产品型号,
-                               np.round(table3['销售额(USD)'], 1).map(lambda x: format(x, ','))],
-                       fill=dict(color='#F5F8FF')
-                       )
-        )
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30},
+                'type': 'category',
+                'automargin': True
 
-        trace3 = go.Bar(
-            x=table4['需求区间'],
-            y=table4['产品型号'],
-            text=table4['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(58,154,217,1)'),
-            name='自营',
-            width=table4['percentage'] * 3,
-            xaxis='x3',
-            yaxis='y3',
-        )
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'group',
+            'title': '<b>%s销售额趋势(%s至%s)<br>(今日自营$%s,TOP2W $%s)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
 
-        trace4 = go.Bar(
-            x=table3['需求区间'],
-            y=table3['产品型号'],
-            text=table3['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(41,171,164,1)'),
-            name='TOP2W自营',
-            width=table3['percentage'] * 3,
-            xaxis='x4',
-            yaxis='y3',
-        )
-
-        data = [trace1, trace1_2w, trace2, trace3, trace4]
-        layout = go.Layout(
-            xaxis=dict(
-                domain=[0, 0.45],
-                type='category'
-            ),
-            yaxis=dict(
-                domain=[0.1, 0.45]
-            ),
-            xaxis3=dict(
-                domain=[0, 0.45],
-                anchor='y3'
-            ),
-            xaxis4=dict(
-                domain=[0.55, 1],
-                anchor='y3'
-            ),
-            yaxis3=dict(
-                domain=[0.55, 1],
-                anchor='x3'
-            )
-        )
         fig = go.Figure(data=data, layout=layout)
-
-        fig['layout']['xaxis'].update(title='销售额趋势(今日自营$%s,TOP2W $%s)' % (
-            int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])))
-
-        fig['layout']['xaxis3'].update(title='自营销售各需求区间分布图(合计销售额$%s)' % int(table4['销售额(USD)'].sum()))
-        fig['layout']['xaxis4'].update(title='TOP2W型号自营销售各需求区间分布图(合计销售额$%s,搜索命中成单率%.2f%%)' % (
-            int(table3['销售额(USD)'].sum()), top2w_order_rate * 100))
-
-        fig['layout'].update(height=windows_h, width=windows_w, title='%s自营销售汇总(%s至%s)' % (mafs, start_time, end_time),
-                             margin=dict(b=50, t=50))
-        #        pyplt(fig, filename='自营销售')
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
         div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
         return div
 
-    def zy_graph_m6(self):
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m6_2(self):
         mafs = adv_mafs_list[6]
 
         sql_mafs_1 = '''
@@ -1281,29 +1501,92 @@ class ChartPlot:
         zy_purc_all = mafs_zy_purc_data.groupby('需求区间', as_index=False).agg(
             {'产品型号': np.count_nonzero, '销售额(USD)': np.sum})
 
+        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
+
+        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
+
+        table3['percentage'] = table3['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table3['percentage'] = table3['percentage'].fillna(0)
+        table4['percentage'] = table4['percentage'].fillna(0)
+
+        table3 = table3.rename(columns={'产品型号': '型号次'})
+        table4 = table4.rename(columns={'产品型号': '型号次'})
+
+        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
+
+        trace3 = go.Bar(
+            x=table4['需求区间'],
+            y=table4['型号次'],
+            marker=dict(
+                color='rgba(58,154,217,1)'),
+            name='自营',
+            width=table4['percentage'] * 3
+        )
+
+        trace4 = go.Bar(
+            x=table3['需求区间'],
+            y=table3['型号次'] * (-1),
+            marker=dict(
+                color='rgba(41,171,164,1)'),
+            name='TOP2W自营',
+            width=table3['percentage'] * 3
+        )
+
+        data = [trace3, trace4]
+
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30}
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'relative',
+            'title': '<b>%s型号自营销售各需求区间分布图(%s至%s)<br>(合计销售额$%s,搜索命中成单率%.2f%%)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table3['销售额(USD)'].sum()), top2w_order_rate * 100),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
+
+        fig = go.Figure(data=data, layout=layout)
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
+        div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
+        return div
+
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m7(self):
+        mafs = adv_mafs_list[7]
+
+        mafs_zy_purc_data = zy_purc_data[zy_purc_data['云汉标准厂牌'] == mafs]
+
         table1 = mafs_zy_purc_data[['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-            '销售额(USD)'].sum().sort_values(
-            ['创建时间'])
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1 = pd.DataFrame({'创建时间': time_list}).merge(table1, on='创建时间', how='left')
         table1['销售额(USD)'] = table1['销售额(USD)'].fillna(0)
 
         table1_2w = \
-            mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-                '销售额(USD)'].sum().sort_values(['创建时间'])
+        mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1_2w = pd.DataFrame({'创建时间': time_list}).merge(table1_2w, on='创建时间', how='left')
         table1_2w['销售额(USD)'] = table1_2w['销售额(USD)'].fillna(0)
-
-        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
-
-        table3['percentage'] = table3['销售额(USD)'] / table3['销售额(USD)'].sum()
-
-        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
-
-        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
-
-        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
 
         trace1 = go.Bar(
             x=table1['创建时间'],
@@ -1323,82 +1606,45 @@ class ChartPlot:
             name='%s自营TOP2W销售额(USD)' % mafs,
         )
 
-        trace2 = go.Table(
-            domain=dict(x=[0.55, 1], y=[0, 0.4]),
+        data = [trace1, trace1_2w]
 
-            header=dict(values=list(table3.columns[0:3]),
-                        fill=dict(color='#C2D4FF')
-                        ),
-            cells=dict(values=[table3.需求区间, table3.产品型号,
-                               np.round(table3['销售额(USD)'], 1).map(lambda x: format(x, ','))],
-                       fill=dict(color='#F5F8FF')
-                       )
-        )
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30},
+                'type': 'category',
+                'automargin': True
 
-        trace3 = go.Bar(
-            x=table4['需求区间'],
-            y=table4['产品型号'],
-            text=table4['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(58,154,217,1)'),
-            name='自营',
-            width=table4['percentage'] * 3,
-            xaxis='x3',
-            yaxis='y3',
-        )
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'group',
+            'title': '<b>%s销售额趋势(%s至%s)<br>(今日自营$%s,TOP2W $%s)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
 
-        trace4 = go.Bar(
-            x=table3['需求区间'],
-            y=table3['产品型号'],
-            text=table3['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(41,171,164,1)'),
-            name='TOP2W自营',
-            width=table3['percentage'] * 3,
-            xaxis='x4',
-            yaxis='y3',
-        )
-
-        data = [trace1, trace1_2w, trace2, trace3, trace4]
-        layout = go.Layout(
-            xaxis=dict(
-                domain=[0, 0.45],
-                type='category'
-            ),
-            yaxis=dict(
-                domain=[0.1, 0.45]
-            ),
-            xaxis3=dict(
-                domain=[0, 0.45],
-                anchor='y3'
-            ),
-            xaxis4=dict(
-                domain=[0.55, 1],
-                anchor='y3'
-            ),
-            yaxis3=dict(
-                domain=[0.55, 1],
-                anchor='x3'
-            )
-        )
         fig = go.Figure(data=data, layout=layout)
-
-        fig['layout']['xaxis'].update(title='销售额趋势(今日自营$%s,TOP2W $%s)' % (
-            int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])))
-
-        fig['layout']['xaxis3'].update(title='自营销售各需求区间分布图(合计销售额$%s)' % int(table4['销售额(USD)'].sum()))
-        fig['layout']['xaxis4'].update(title='TOP2W型号自营销售各需求区间分布图(合计销售额$%s,搜索命中成单率%.2f%%)' % (
-            int(table3['销售额(USD)'].sum()), top2w_order_rate * 100))
-
-        fig['layout'].update(height=windows_h, width=windows_w, title='%s自营销售汇总(%s至%s)' % (mafs, start_time, end_time),
-                             margin=dict(b=50, t=50))
-        #        pyplt(fig, filename='自营销售')
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
         div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
         return div
 
-    def zy_graph_m7(self):
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m7_2(self):
         mafs = adv_mafs_list[7]
 
         sql_mafs_1 = '''
@@ -1420,29 +1666,92 @@ class ChartPlot:
         zy_purc_all = mafs_zy_purc_data.groupby('需求区间', as_index=False).agg(
             {'产品型号': np.count_nonzero, '销售额(USD)': np.sum})
 
+        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
+
+        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
+
+        table3['percentage'] = table3['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table3['percentage'] = table3['percentage'].fillna(0)
+        table4['percentage'] = table4['percentage'].fillna(0)
+
+        table3 = table3.rename(columns={'产品型号': '型号次'})
+        table4 = table4.rename(columns={'产品型号': '型号次'})
+
+        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
+
+        trace3 = go.Bar(
+            x=table4['需求区间'],
+            y=table4['型号次'],
+            marker=dict(
+                color='rgba(58,154,217,1)'),
+            name='自营',
+            width=table4['percentage'] * 3
+        )
+
+        trace4 = go.Bar(
+            x=table3['需求区间'],
+            y=table3['型号次'] * (-1),
+            marker=dict(
+                color='rgba(41,171,164,1)'),
+            name='TOP2W自营',
+            width=table3['percentage'] * 3
+        )
+
+        data = [trace3, trace4]
+
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30}
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'relative',
+            'title': '<b>%s型号自营销售各需求区间分布图(%s至%s)<br>(合计销售额$%s,搜索命中成单率%.2f%%)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table3['销售额(USD)'].sum()), top2w_order_rate * 100),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
+
+        fig = go.Figure(data=data, layout=layout)
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
+        div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
+        return div
+
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m8(self):
+        mafs = adv_mafs_list[8]
+
+        mafs_zy_purc_data = zy_purc_data[zy_purc_data['云汉标准厂牌'] == mafs]
+
         table1 = mafs_zy_purc_data[['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-            '销售额(USD)'].sum().sort_values(
-            ['创建时间'])
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1 = pd.DataFrame({'创建时间': time_list}).merge(table1, on='创建时间', how='left')
         table1['销售额(USD)'] = table1['销售额(USD)'].fillna(0)
 
         table1_2w = \
-            mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-                '销售额(USD)'].sum().sort_values(['创建时间'])
+        mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1_2w = pd.DataFrame({'创建时间': time_list}).merge(table1_2w, on='创建时间', how='left')
         table1_2w['销售额(USD)'] = table1_2w['销售额(USD)'].fillna(0)
-
-        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
-
-        table3['percentage'] = table3['销售额(USD)'] / table3['销售额(USD)'].sum()
-
-        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
-
-        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
-
-        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
 
         trace1 = go.Bar(
             x=table1['创建时间'],
@@ -1462,82 +1771,45 @@ class ChartPlot:
             name='%s自营TOP2W销售额(USD)' % mafs,
         )
 
-        trace2 = go.Table(
-            domain=dict(x=[0.55, 1], y=[0, 0.4]),
+        data = [trace1, trace1_2w]
 
-            header=dict(values=list(table3.columns[0:3]),
-                        fill=dict(color='#C2D4FF')
-                        ),
-            cells=dict(values=[table3.需求区间, table3.产品型号,
-                               np.round(table3['销售额(USD)'], 1).map(lambda x: format(x, ','))],
-                       fill=dict(color='#F5F8FF')
-                       )
-        )
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30},
+                'type': 'category',
+                'automargin': True
 
-        trace3 = go.Bar(
-            x=table4['需求区间'],
-            y=table4['产品型号'],
-            text=table4['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(58,154,217,1)'),
-            name='自营',
-            width=table4['percentage'] * 3,
-            xaxis='x3',
-            yaxis='y3',
-        )
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'group',
+            'title': '<b>%s销售额趋势(%s至%s)<br>(今日自营$%s,TOP2W $%s)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
 
-        trace4 = go.Bar(
-            x=table3['需求区间'],
-            y=table3['产品型号'],
-            text=table3['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(41,171,164,1)'),
-            name='TOP2W自营',
-            width=table3['percentage'] * 3,
-            xaxis='x4',
-            yaxis='y3',
-        )
-
-        data = [trace1, trace1_2w, trace2, trace3, trace4]
-        layout = go.Layout(
-            xaxis=dict(
-                domain=[0, 0.45],
-                type='category'
-            ),
-            yaxis=dict(
-                domain=[0.1, 0.45]
-            ),
-            xaxis3=dict(
-                domain=[0, 0.45],
-                anchor='y3'
-            ),
-            xaxis4=dict(
-                domain=[0.55, 1],
-                anchor='y3'
-            ),
-            yaxis3=dict(
-                domain=[0.55, 1],
-                anchor='x3'
-            )
-        )
         fig = go.Figure(data=data, layout=layout)
-
-        fig['layout']['xaxis'].update(title='销售额趋势(今日自营$%s,TOP2W $%s)' % (
-            int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])))
-
-        fig['layout']['xaxis3'].update(title='自营销售各需求区间分布图(合计销售额$%s)' % int(table4['销售额(USD)'].sum()))
-        fig['layout']['xaxis4'].update(title='TOP2W型号自营销售各需求区间分布图(合计销售额$%s,搜索命中成单率%.2f%%)' % (
-            int(table3['销售额(USD)'].sum()), top2w_order_rate * 100))
-
-        fig['layout'].update(height=windows_h, width=windows_w, title='%s自营销售汇总(%s至%s)' % (mafs, start_time, end_time),
-                             margin=dict(b=50, t=50))
-        #        pyplt(fig, filename='自营销售')
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
         div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
         return div
 
-    def zy_graph_m8(self):
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m8_2(self):
         mafs = adv_mafs_list[8]
 
         sql_mafs_1 = '''
@@ -1559,29 +1831,92 @@ class ChartPlot:
         zy_purc_all = mafs_zy_purc_data.groupby('需求区间', as_index=False).agg(
             {'产品型号': np.count_nonzero, '销售额(USD)': np.sum})
 
+        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
+
+        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
+
+        table3['percentage'] = table3['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table3['percentage'] = table3['percentage'].fillna(0)
+        table4['percentage'] = table4['percentage'].fillna(0)
+
+        table3 = table3.rename(columns={'产品型号': '型号次'})
+        table4 = table4.rename(columns={'产品型号': '型号次'})
+
+        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
+
+        trace3 = go.Bar(
+            x=table4['需求区间'],
+            y=table4['型号次'],
+            marker=dict(
+                color='rgba(58,154,217,1)'),
+            name='自营',
+            width=table4['percentage'] * 3
+        )
+
+        trace4 = go.Bar(
+            x=table3['需求区间'],
+            y=table3['型号次'] * (-1),
+            marker=dict(
+                color='rgba(41,171,164,1)'),
+            name='TOP2W自营',
+            width=table3['percentage'] * 3
+        )
+
+        data = [trace3, trace4]
+
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30}
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'relative',
+            'title': '<b>%s型号自营销售各需求区间分布图(%s至%s)<br>(合计销售额$%s,搜索命中成单率%.2f%%)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table3['销售额(USD)'].sum()), top2w_order_rate * 100),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
+
+        fig = go.Figure(data=data, layout=layout)
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
+        div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
+        return div
+
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m9(self):
+        mafs = adv_mafs_list[9]
+
+        mafs_zy_purc_data = zy_purc_data[zy_purc_data['云汉标准厂牌'] == mafs]
+
         table1 = mafs_zy_purc_data[['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-            '销售额(USD)'].sum().sort_values(
-            ['创建时间'])
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1 = pd.DataFrame({'创建时间': time_list}).merge(table1, on='创建时间', how='left')
         table1['销售额(USD)'] = table1['销售额(USD)'].fillna(0)
 
         table1_2w = \
-            mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-                '销售额(USD)'].sum().sort_values(['创建时间'])
+        mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
+            '销售额(USD)'].sum().sort_values(['创建时间'])
 
         table1_2w = pd.DataFrame({'创建时间': time_list}).merge(table1_2w, on='创建时间', how='left')
         table1_2w['销售额(USD)'] = table1_2w['销售额(USD)'].fillna(0)
-
-        table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
-
-        table3['percentage'] = table3['销售额(USD)'] / table3['销售额(USD)'].sum()
-
-        table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
-
-        table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
-
-        top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
 
         trace1 = go.Bar(
             x=table1['创建时间'],
@@ -1601,82 +1936,45 @@ class ChartPlot:
             name='%s自营TOP2W销售额(USD)' % mafs,
         )
 
-        trace2 = go.Table(
-            domain=dict(x=[0.55, 1], y=[0, 0.4]),
+        data = [trace1, trace1_2w]
 
-            header=dict(values=list(table3.columns[0:3]),
-                        fill=dict(color='#C2D4FF')
-                        ),
-            cells=dict(values=[table3.需求区间, table3.产品型号,
-                               np.round(table3['销售额(USD)'], 1).map(lambda x: format(x, ','))],
-                       fill=dict(color='#F5F8FF')
-                       )
-        )
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30},
+                'type': 'category',
+                'automargin': True
 
-        trace3 = go.Bar(
-            x=table4['需求区间'],
-            y=table4['产品型号'],
-            text=table4['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(58,154,217,1)'),
-            name='自营',
-            width=table4['percentage'] * 3,
-            xaxis='x3',
-            yaxis='y3',
-        )
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'group',
+            'title': '<b>%s销售额趋势(%s至%s)<br>(今日自营$%s,TOP2W $%s)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
 
-        trace4 = go.Bar(
-            x=table3['需求区间'],
-            y=table3['产品型号'],
-            text=table3['产品型号'],
-            textposition='outside',
-            marker=dict(
-                color='rgba(41,171,164,1)'),
-            name='TOP2W自营',
-            width=table3['percentage'] * 3,
-            xaxis='x4',
-            yaxis='y3',
-        )
-
-        data = [trace1, trace1_2w, trace2, trace3, trace4]
-        layout = go.Layout(
-            xaxis=dict(
-                domain=[0, 0.45],
-                type='category'
-            ),
-            yaxis=dict(
-                domain=[0.1, 0.45]
-            ),
-            xaxis3=dict(
-                domain=[0, 0.45],
-                anchor='y3'
-            ),
-            xaxis4=dict(
-                domain=[0.55, 1],
-                anchor='y3'
-            ),
-            yaxis3=dict(
-                domain=[0.55, 1],
-                anchor='x3'
-            )
-        )
         fig = go.Figure(data=data, layout=layout)
-
-        fig['layout']['xaxis'].update(title='销售额趋势(今日自营$%s,TOP2W $%s)' % (
-            int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])))
-
-        fig['layout']['xaxis3'].update(title='自营销售各需求区间分布图(合计销售额$%s)' % int(table4['销售额(USD)'].sum()))
-        fig['layout']['xaxis4'].update(title='TOP2W型号自营销售各需求区间分布图(合计销售额$%s,搜索命中成单率%.2f%%)' % (
-            int(table3['销售额(USD)'].sum()), top2w_order_rate * 100))
-
-        fig['layout'].update(height=windows_h, width=windows_w, title='%s自营销售汇总(%s至%s)' % (mafs, start_time, end_time),
-                             margin=dict(b=50, t=50))
-        #        pyplt(fig, filename='自营销售')
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
         div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
         return div
 
-    def zy_graph_m9(self):
+    #        pyplt(fig, filename='自营销售')
+
+    def zy_graph_m9_2(self):
         mafs = adv_mafs_list[9]
 
         sql_mafs_1 = '''
@@ -1698,123 +1996,74 @@ class ChartPlot:
         zy_purc_all = mafs_zy_purc_data.groupby('需求区间', as_index=False).agg(
             {'产品型号': np.count_nonzero, '销售额(USD)': np.sum})
 
-        table1 = mafs_zy_purc_data[['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-            '销售额(USD)'].sum().sort_values(
-            ['创建时间'])
-
-        table1 = pd.DataFrame({'创建时间': time_list}).merge(table1, on='创建时间', how='left')
-        table1['销售额(USD)'] = table1['销售额(USD)'].fillna(0)
-
-        table1_2w = \
-            mafs_zy_purc_data[mafs_zy_purc_data['TOP2W']][['销售额(USD)', '创建时间']].groupby(['创建时间'], as_index=False)[
-                '销售额(USD)'].sum().sort_values(['创建时间'])
-
-        table1_2w = pd.DataFrame({'创建时间': time_list}).merge(table1_2w, on='创建时间', how='left')
-        table1_2w['销售额(USD)'] = table1_2w['销售额(USD)'].fillna(0)
-
         table3 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_top2w, on='需求区间', how='left')
-
-        table3['percentage'] = table3['销售额(USD)'] / table3['销售额(USD)'].sum()
 
         table4 = pd.DataFrame({'需求区间': qty_type_list}).merge(zy_purc_all, on='需求区间', how='left')
 
+        table3['percentage'] = table3['销售额(USD)'] / table4['销售额(USD)'].sum()
+
         table4['percentage'] = table4['销售额(USD)'] / table4['销售额(USD)'].sum()
+
+        table3['percentage'] = table3['percentage'].fillna(0)
+        table4['percentage'] = table4['percentage'].fillna(0)
+
+        table3 = table3.rename(columns={'产品型号': '型号次'})
+        table4 = table4.rename(columns={'产品型号': '型号次'})
 
         top2w_order_rate = zy_purc_top2w['产品型号'].sum() / mafs_search['search_count'][0]
 
-        trace1 = go.Bar(
-            x=table1['创建时间'],
-            y=table1['销售额(USD)'],
-            marker=dict(
-                color='rgba(51,102,153,1)'),
-            name='%s自营销售额(USD)' % mafs,
-            opacity=0.6,
-            #    title = '销售额趋势(今日销售额$%s)' % int(table1['销售额(USD)'].tolist()[-1])
-        )
-
-        trace1_2w = go.Bar(
-            x=table1_2w['创建时间'],
-            y=table1_2w['销售额(USD)'],
-            marker=dict(
-                color='rgba(255,204,102,1)'),
-            name='%s自营TOP2W销售额(USD)' % mafs,
-        )
-
-        trace2 = go.Table(
-            domain=dict(x=[0.55, 1], y=[0, 0.4]),
-
-            header=dict(values=list(table3.columns[0:3]),
-                        fill=dict(color='#C2D4FF')
-                        ),
-            cells=dict(values=[table3.需求区间, table3.产品型号,
-                               np.round(table3['销售额(USD)'], 1).map(lambda x: format(x, ','))],
-                       fill=dict(color='#F5F8FF')
-                       )
-        )
-
         trace3 = go.Bar(
             x=table4['需求区间'],
-            y=table4['产品型号'],
-            text=table4['产品型号'],
-            textposition='outside',
+            y=table4['型号次'],
             marker=dict(
                 color='rgba(58,154,217,1)'),
             name='自营',
-            width=table4['percentage'] * 3,
-            xaxis='x3',
-            yaxis='y3',
+            width=table4['percentage'] * 3
         )
 
         trace4 = go.Bar(
             x=table3['需求区间'],
-            y=table3['产品型号'],
-            text=table3['产品型号'],
-            textposition='outside',
+            y=table3['型号次'] * (-1),
             marker=dict(
                 color='rgba(41,171,164,1)'),
             name='TOP2W自营',
-            width=table3['percentage'] * 3,
-            xaxis='x4',
-            yaxis='y3',
+            width=table3['percentage'] * 3
         )
 
-        data = [trace1, trace1_2w, trace2, trace3, trace4]
-        layout = go.Layout(
-            xaxis=dict(
-                domain=[0, 0.45],
-                type='category'
-            ),
-            yaxis=dict(
-                domain=[0.1, 0.45]
-            ),
-            xaxis3=dict(
-                domain=[0, 0.45],
-                anchor='y3'
-            ),
-            xaxis4=dict(
-                domain=[0.55, 1],
-                anchor='y3'
-            ),
-            yaxis3=dict(
-                domain=[0.55, 1],
-                anchor='x3'
-            )
-        )
+        data = [trace3, trace4]
+
+        layout = {
+            'xaxis': {
+                'tickfont': {'size': 30}
+            },
+            'yaxis': {
+                'tickfont': {'size': 30}
+            },
+            'barmode': 'relative',
+            'title': '<b>%s型号自营销售各需求区间分布图(%s至%s)<br>(合计销售额$%s,搜索命中成单率%.2f%%)</b>' % (
+                mafs,
+                start_time, end_time,
+                int(table3['销售额(USD)'].sum()), top2w_order_rate * 100),
+            'font': {
+                'family': '\"Open Sans\", verdana, arial, sans-serif',
+                'size': 30,
+                'color': '#444'
+            },
+            'legend': {
+                'orientation': 'h',
+                'x': 0.5,
+                'y': 0.95
+            }
+        }
+
         fig = go.Figure(data=data, layout=layout)
-
-        fig['layout']['xaxis'].update(title='销售额趋势(今日自营$%s,TOP2W $%s)' % (
-            int(table1['销售额(USD)'].tolist()[-1]), int(table1_2w['销售额(USD)'].tolist()[-1])))
-
-        fig['layout']['xaxis3'].update(title='自营销售各需求区间分布图(合计销售额$%s)' % int(table4['销售额(USD)'].sum()))
-        fig['layout']['xaxis4'].update(title='TOP2W型号自营销售各需求区间分布图(合计销售额$%s,搜索命中成单率%.2f%%)' % (
-            int(table3['销售额(USD)'].sum()), top2w_order_rate * 100))
-
-        fig['layout'].update(height=windows_h, width=windows_w, title='%s自营销售汇总(%s至%s)' % (mafs, start_time, end_time),
-                             margin=dict(b=50, t=50))
-        #        pyplt(fig, filename='自营销售')
+        fig['layout'].update(
+            height=windows_h, width=windows_w
+        )
         div = pyplt(fig, output_type='div', auto_open=False, show_link=False, include_plotlyjs=False)
         return div
 
+    #        pyplt(fig, filename='自营销售')
 
 if __name__ == 'main':
     charts = ChartPlot()
