@@ -13,8 +13,8 @@ import warnings
 warnings.filterwarnings("ignore")
 # 读取采购明细
 
-start_time = '2019-02-18'
-end_time = '2019-02-28'
+start_time = '2019-02-20'
+end_time = '2019-03-05'
 
 engine_1 = create_engine(
     "mysql+mysqldb://{}:{}@{}/{}?charset=utf8".format('yhxc', 'yhxc1234', '10.8.30.104', 'purc_details'))
@@ -246,7 +246,8 @@ class ChartPlot:
         layout = {
             'xaxis': {
                 'tickfont': {'size': 30},
-                'type': 'category'
+                'type': 'category',
+                'nticks': 5
             },
             'yaxis': {
                 'tickfont': {'size': 30}
@@ -311,7 +312,8 @@ class ChartPlot:
         layout = {
             'xaxis': {
                 'tickfont': {'size': 30},
-                'type': 'category'
+                'type': 'category',
+                'nticks': 5
             },
             'yaxis': {
                 'tickfont': {'size': 30}
@@ -457,6 +459,7 @@ class ChartPlot:
             'xaxis': {
                 'tickfont': {'size': 30},
                 'type': 'category',
+                'nticks': 5,
                 'automargin': True
 
             },
@@ -622,6 +625,7 @@ class ChartPlot:
             'xaxis': {
                 'tickfont': {'size': 30},
                 'type': 'category',
+                'nticks': 5,
                 'automargin': True
 
             },
@@ -787,6 +791,7 @@ class ChartPlot:
             'xaxis': {
                 'tickfont': {'size': 30},
                 'type': 'category',
+                'nticks': 5,
                 'automargin': True
 
             },
@@ -952,6 +957,7 @@ class ChartPlot:
             'xaxis': {
                 'tickfont': {'size': 30},
                 'type': 'category',
+                'nticks': 5,
                 'automargin': True
 
             },
@@ -1117,6 +1123,7 @@ class ChartPlot:
             'xaxis': {
                 'tickfont': {'size': 30},
                 'type': 'category',
+                'nticks': 5,
                 'automargin': True
 
             },
@@ -1282,6 +1289,7 @@ class ChartPlot:
             'xaxis': {
                 'tickfont': {'size': 30},
                 'type': 'category',
+                'nticks': 5,
                 'automargin': True
 
             },
@@ -1447,6 +1455,7 @@ class ChartPlot:
             'xaxis': {
                 'tickfont': {'size': 30},
                 'type': 'category',
+                'nticks': 5,
                 'automargin': True
 
             },
@@ -1612,6 +1621,7 @@ class ChartPlot:
             'xaxis': {
                 'tickfont': {'size': 30},
                 'type': 'category',
+                'nticks': 5,
                 'automargin': True
 
             },
@@ -1777,6 +1787,7 @@ class ChartPlot:
             'xaxis': {
                 'tickfont': {'size': 30},
                 'type': 'category',
+                'nticks': 5,
                 'automargin': True
 
             },
@@ -1942,6 +1953,7 @@ class ChartPlot:
             'xaxis': {
                 'tickfont': {'size': 30},
                 'type': 'category',
+                'nticks': 5,
                 'automargin': True
 
             },

@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="2b5bfb99-b7ee-43d0-b072-da6a2351c191" name="Default Changelist" comment="" />
+    <list default="true" id="2b5bfb99-b7ee-43d0-b072-da6a2351c191" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/visual_plotly/data_statistic_plot.py" beforeDir="false" afterPath="$PROJECT_DIR$/visual_plotly/data_statistic_plot.py" afterDir="false" />
+    </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -34,8 +37,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/visual_plotly/data_statistic_plot.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-36599">
-              <caret line="123" column="52" lean-forward="true" selection-start-line="123" selection-start-column="52" selection-end-line="123" selection-end-column="52" />
+            <state relative-caret-position="190">
+              <caret line="16" column="22" selection-start-line="16" selection-start-column="22" selection-end-line="16" selection-end-column="22" />
               <folding>
                 <element signature="e#86#105#0" expanded="true" />
               </folding>
@@ -62,7 +65,7 @@
         <entry file="file://$PROJECT_DIR$/templates/index2.html">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="1634">
-              <caret line="86" lean-forward="true" selection-start-line="86" selection-end-line="86" />
+              <caret line="86" selection-start-line="86" selection-end-line="86" />
             </state>
           </provider>
         </entry>
@@ -70,7 +73,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/plotly_and_django/urls.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="364">
+            <state relative-caret-position="418">
               <caret line="24" selection-start-line="24" selection-end-line="24" />
               <folding>
                 <element signature="e#651#692#0" expanded="true" />
@@ -82,11 +85,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/visual_plotly/urls.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="133">
-              <caret line="7" column="1" lean-forward="true" selection-start-line="7" selection-start-column="1" selection-end-line="7" selection-end-column="1" />
-              <folding>
-                <element signature="e#0#38#0" expanded="true" />
-              </folding>
+            <state relative-caret-position="114">
+              <caret line="7" column="1" selection-start-line="7" selection-start-column="1" selection-end-line="7" selection-end-column="1" />
             </state>
           </provider>
         </entry>
@@ -142,6 +142,7 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -168,7 +169,6 @@
           <select />
         </subPane>
       </pane>
-      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -372,12 +372,15 @@
       <workItem from="1551149741097" duration="1303000" />
       <workItem from="1551167377634" duration="4380000" />
       <workItem from="1551229612420" duration="9846000" />
-      <workItem from="1551315651315" duration="15113000" />
+      <workItem from="1551315651315" duration="15711000" />
+      <workItem from="1551404542005" duration="2753000" />
+      <workItem from="1551661320867" duration="2509000" />
+      <workItem from="1551749631862" duration="1682000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="102582000" />
+    <option name="totallyTimeSpent" value="110124000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -391,7 +394,7 @@
   <component name="ToolWindowManager">
     <frame x="-8" y="-8" width="1382" height="744" extended-state="6" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.22768533" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.23903178" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -509,19 +512,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/templates/index.html">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="133">
-          <caret line="7" column="20" selection-start-line="7" selection-start-column="20" selection-end-line="7" selection-end-column="20" />
-          <folding>
-            <element signature="n#style#0;n#div#0;n#div#0;n#div#0;n#div#0;n#body#0;n#html#0;n#!!top" expanded="true" />
-            <element signature="n#style#0;n#div#1;n#div#0;n#div#0;n#div#0;n#body#0;n#html#0;n#!!top" expanded="true" />
-            <element signature="n#style#0;n#div#2;n#div#0;n#div#0;n#div#0;n#body#0;n#html#0;n#!!top" expanded="true" />
-            <element signature="n#style#0;n#div#3;n#div#0;n#div#0;n#div#0;n#body#0;n#html#0;n#!!top" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/visual_plotly/views.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="817">
@@ -535,12 +525,25 @@
     <entry file="file://$PROJECT_DIR$/visual_plotly/tests.py">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
-    <entry file="file://$PROJECT_DIR$/visual_plotly/urls.py">
+    <entry file="file://$PROJECT_DIR$/visual_plotly/data_statistic_plot.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="190">
+          <caret line="16" column="22" selection-start-line="16" selection-start-column="22" selection-end-line="16" selection-end-column="22" />
+          <folding>
+            <element signature="e#86#105#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/templates/index.html">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="133">
-          <caret line="7" column="1" lean-forward="true" selection-start-line="7" selection-start-column="1" selection-end-line="7" selection-end-column="1" />
+          <caret line="7" column="20" selection-start-line="7" selection-start-column="20" selection-end-line="7" selection-end-column="20" />
           <folding>
-            <element signature="e#0#38#0" expanded="true" />
+            <element signature="n#style#0;n#div#0;n#div#0;n#div#0;n#div#0;n#body#0;n#html#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#1;n#div#0;n#div#0;n#div#0;n#body#0;n#html#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#2;n#div#0;n#div#0;n#div#0;n#body#0;n#html#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#3;n#div#0;n#div#0;n#div#0;n#body#0;n#html#0;n#!!top" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -548,13 +551,13 @@
     <entry file="file://$PROJECT_DIR$/templates/index2.html">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1634">
-          <caret line="86" lean-forward="true" selection-start-line="86" selection-end-line="86" />
+          <caret line="86" selection-start-line="86" selection-end-line="86" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/plotly_and_django/urls.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="364">
+        <state relative-caret-position="418">
           <caret line="24" selection-start-line="24" selection-end-line="24" />
           <folding>
             <element signature="e#651#692#0" expanded="true" />
@@ -562,13 +565,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/visual_plotly/data_statistic_plot.py">
+    <entry file="file://$PROJECT_DIR$/visual_plotly/urls.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-36599">
-          <caret line="123" column="52" lean-forward="true" selection-start-line="123" selection-start-column="52" selection-end-line="123" selection-end-column="52" />
-          <folding>
-            <element signature="e#86#105#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="114">
+          <caret line="7" column="1" selection-start-line="7" selection-start-column="1" selection-end-line="7" selection-end-column="1" />
         </state>
       </provider>
     </entry>
